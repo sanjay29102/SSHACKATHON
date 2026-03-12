@@ -24,7 +24,7 @@ const extractBatchInvoiceData = async (files) => {
 
     Step 2 — Extract Invoice Data
     For each invoice extract:
-    - Supplier: supplier_name, supplier_gstin, supplier_address, supplier_phone
+    - Supplier: supplier_name, supplier_gstin (Must be the seller/supplier's GSTIN only, do not capture the buyer's GSTIN), supplier_address, supplier_phone (Look closely for 'Ph', 'Mob', 'Tel', or 10-digit numbers associated with the supplier. Strip spaces)
     - Invoice: invoice_number, invoice_date (ISO YYYY-MM-DD), place_of_supply, payment_terms
     - Items (ALL rows): item_name, hsn_code, quantity, unit_of_measure, rate, amount
     - Tax: cgst, sgst, igst
@@ -38,12 +38,16 @@ const extractBatchInvoiceData = async (files) => {
     If unsure, return "Other".
 
     Step 4 — Confidence Scores
-    Estimate a confidence percentage (0–100) for these fields in each invoice:
-    - supplier_name: 100 = clearly visible, 70–90 = inferred, 40–60 = uncertain, 0–30 = guessed
-    - supplier_gstin
+    BE STRICT. Estimate a confidence percentage (0–100) for these fields in each invoice. 
+    Rule 1: If the field is missing, blurry, or looks like a guess, the score MUST be 0–30.
+    Rule 2: If the formatting is slightly off or inferred, score 40–80.
+    Rule 3: Only score 90–100 if the text is perfectly clear and unambiguously matches standard formats.
+    Fields to score:
+    - supplier_name
+    - supplier_gstin (Check if it looks like a valid 15-char Indian GSTIN, otherwise score low)
     - invoice_number
     - invoice_date
-    - grand_total
+    - grand_total (If sub_total + tax_total != grand_total, score this VERY low)
 
     Step 5 — Return structured output
 
