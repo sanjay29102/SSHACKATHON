@@ -6,7 +6,8 @@ const {
     getAllInvoices,
     getInvoiceById,
     updateInvoice,
-    exportToCSV
+    exportToCSV,
+    exportSingleToCSV
 } = require('../controllers/invoice.controller');
 
 // Upload and extract
@@ -19,5 +20,6 @@ router.put('/:id', updateInvoice);
 
 // Export
 router.get('/export/csv', exportToCSV);
+router.get('/:id/export/csv', exportSingleToCSV);
 
 module.exports = router;

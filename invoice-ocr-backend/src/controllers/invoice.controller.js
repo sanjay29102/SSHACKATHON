@@ -71,32 +71,54 @@ const updateInvoice = async (req, res) => {
 const exportToCSV = async (req, res) => {
     try {
         const invoices = await Invoice.find();
-        const csvPath = path.join(__dirname, '../../uploads/invoices_export.csv');
-
-        const csvWriter = createObjectCsvWriter({
-            path: csvPath,
-            header: [
-                { id: 'supplier_name', title: 'Supplier Name' },
-                { id: 'invoice_number', title: 'Invoice Number' },
-                { id: 'date', title: 'Date' },
-                { id: 'grand_total', title: 'Grand Total' },
-                { id: 'status', title: 'Status' }
-            ]
-        });
-
-        const records = invoices.map(inv => ({
-            supplier_name: inv.supplier?.name || '',
-            invoice_number: inv.invoice?.invoice_number || '',
-            date: inv.invoice?.invoice_date || '',
-            grand_total: inv.totals?.grand_total || 0,
-            status: inv.status
-        }));
-
-        await csvWriter.writeRecords(records);
+        const csvPath = path.join(__dirname, '../../uploads/all_invoices.csv');
+        await writeInvoicesToCSV(invoices, csvPath);
         res.download(csvPath);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
+};
+
+const exportSingleToCSV = async (req, res) => {
+    try {
+        const invoice = await Invoice.findById(req.params.id);
+        if (!invoice) return res.status(404).json({ message: "Invoice not found" });
+
+        const csvPath = path.join(__dirname, `../../uploads/invoice_${invoice.invoice?.invoice_number || invoice._id}.csv`);
+        await writeInvoicesToCSV([invoice], csvPath);
+        res.download(csvPath);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+const writeInvoicesToCSV = async (invoices, filePath) => {
+    const csvWriter = createObjectCsvWriter({
+        path: filePath,
+        header: [
+            { id: 'supplier_name', title: 'Supplier Name' },
+            { id: 'supplier_gstin', title: 'GSTIN' },
+            { id: 'invoice_number', title: 'Invoice Number' },
+            { id: 'date', title: 'Date' },
+            { id: 'sub_total', title: 'Sub Total' },
+            { id: 'tax_total', title: 'Tax Total' },
+            { id: 'grand_total', title: 'Grand Total' },
+            { id: 'status', title: 'Status' }
+        ]
+    });
+
+    const records = invoices.map(inv => ({
+        supplier_name: inv.supplier?.name || '',
+        supplier_gstin: inv.supplier?.gstin || '',
+        invoice_number: inv.invoice?.invoice_number || '',
+        date: inv.invoice?.invoice_date || '',
+        sub_total: inv.totals?.sub_total || 0,
+        tax_total: inv.totals?.tax_total || 0,
+        grand_total: inv.totals?.grand_total || 0,
+        status: inv.status
+    }));
+
+    await csvWriter.writeRecords(records);
 };
 
 module.exports = {
@@ -104,5 +126,6 @@ module.exports = {
     getAllInvoices,
     getInvoiceById,
     updateInvoice,
-    exportToCSV
+    exportToCSV,
+    exportSingleToCSV
 };
