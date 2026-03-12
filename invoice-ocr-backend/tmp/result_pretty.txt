@@ -1,0 +1,185 @@
+﻿{
+    "message":  "Batch processed successfully",
+    "dashboard":  {
+                      "general_metrics":  {
+                                              "total_invoices_processed":  1,
+                                              "total_invoice_amount":  2360,
+                                              "total_tax_amount":  360,
+                                              "average_invoice_value":  2360
+                                          },
+                      "supplier_insights":  {
+                                                "top_suppliers_by_total_invoice_value":  [
+                                                                                             {
+                                                                                                 "name":  "Global Traders",
+                                                                                                 "total_value":  2360
+                                                                                             }
+                                                                                         ],
+                                                "most_frequent_supplier":  "Global Traders",
+                                                "supplier_invoice_counts":  {
+                                                                                "Global Traders":  1
+                                                                            }
+                                            },
+                      "invoice_insights":  {
+                                               "duplicate_invoice_numbers":  [
+
+                                                                             ],
+                                               "invoices_with_missing_fields":  [
+                                                                                    {
+                                                                                        "invoice_number":  "INV-9901",
+                                                                                        "missing_fields":  [
+                                                                                                               "supplier.address",
+                                                                                                               "supplier.phone",
+                                                                                                               "items[0].hsn_code",
+                                                                                                               "items[0].uom",
+                                                                                                               "items[1].hsn_code",
+                                                                                                               "items[1].uom"
+                                                                                                           ]
+                                                                                    }
+                                                                                ],
+                                               "invoices_with_validation_errors":  [
+
+                                                                                   ]
+                                           },
+                      "time_analysis":  {
+                                            "monthly_invoice_totals":  {
+                                                                           "2026-03":  2360
+                                                                       },
+                                            "highest_spending_month":  {
+                                                                           "month":  "2026-03",
+                                                                           "value":  2360
+                                                                       }
+                                        }
+                  },
+    "invoices":  [
+                     {
+                         "supplier":  {
+                                          "name":  "Global Traders",
+                                          "gstin":  "27AAAAA0000A1Z5",
+                                          "address":  "",
+                                          "phone":  ""
+                                      },
+                         "invoice":  {
+                                         "invoice_number":  "INV-9901",
+                                         "invoice_date":  "2026-03-10",
+                                         "place_of_supply":  "Mumbai, 400001",
+                                         "payment_terms":  "30 Days"
+                                     },
+                         "items":  [
+                                       {
+                                           "name":  "Cotton Yarn",
+                                           "hsn_code":  "",
+                                           "qty":  2,
+                                           "uom":  "",
+                                           "rate":  500,
+                                           "amount":  1000,
+                                           "calculation_check":  {
+                                                                     "expected_amount":  1000,
+                                                                     "status":  "passed"
+                                                                 },
+                                           "_id":  "69b2b9f7c68ccba56c96ee79"
+                                       },
+                                       {
+                                           "name":  "Silk Thread",
+                                           "hsn_code":  "",
+                                           "qty":  5,
+                                           "uom":  "",
+                                           "rate":  200,
+                                           "amount":  1000,
+                                           "calculation_check":  {
+                                                                     "expected_amount":  1000,
+                                                                     "status":  "passed"
+                                                                 },
+                                           "_id":  "69b2b9f7c68ccba56c96ee7a"
+                                       }
+                                   ],
+                         "tax":  {
+                                     "cgst":  180,
+                                     "sgst":  180,
+                                     "igst":  0
+                                 },
+                         "totals":  {
+                                        "sub_total":  2000,
+                                        "tax_total":  360,
+                                        "grand_total":  2360
+                                    },
+                         "validation_results":  {
+                                                    "gstin_validation_status":  "valid",
+                                                    "total_validation":  {
+                                                                             "expected_grand_total":  2360,
+                                                                             "status":  "passed"
+                                                                         }
+                                                },
+                         "corrections_applied":  [
+
+                                                 ],
+                         "raw_json":  {
+                                          "supplier":  {
+                                                           "name":  "Global Traders",
+                                                           "gstin":  "27AAAAA0000A1Z5",
+                                                           "address":  "",
+                                                           "phone":  ""
+                                                       },
+                                          "invoice":  {
+                                                          "invoice_number":  "INV-9901",
+                                                          "invoice_date":  "2026-03-10",
+                                                          "place_of_supply":  "Mumbai, 400001",
+                                                          "payment_terms":  "30 Days"
+                                                      },
+                                          "items":  [
+                                                        {
+                                                            "name":  "Cotton Yarn",
+                                                            "hsn_code":  "",
+                                                            "qty":  2,
+                                                            "uom":  "",
+                                                            "rate":  500,
+                                                            "amount":  1000,
+                                                            "calculation_check":  {
+                                                                                      "expected_amount":  1000,
+                                                                                      "status":  "passed"
+                                                                                  },
+                                                            "original_item_data":  null
+                                                        },
+                                                        {
+                                                            "name":  "Silk Thread",
+                                                            "hsn_code":  "",
+                                                            "qty":  5,
+                                                            "uom":  "",
+                                                            "rate":  200,
+                                                            "amount":  1000,
+                                                            "calculation_check":  {
+                                                                                      "expected_amount":  1000,
+                                                                                      "status":  "passed"
+                                                                                  },
+                                                            "original_item_data":  null
+                                                        }
+                                                    ],
+                                          "tax":  {
+                                                      "cgst":  180,
+                                                      "sgst":  180,
+                                                      "igst":  0
+                                                  },
+                                          "totals":  {
+                                                         "sub_total":  2000,
+                                                         "tax_total":  360,
+                                                         "grand_total":  2360
+                                                     },
+                                          "validation_results":  {
+                                                                     "gstin_validation_status":  "valid",
+                                                                     "total_validation":  {
+                                                                                              "expected_grand_total":  2360,
+                                                                                              "status":  "passed"
+                                                                                          }
+                                                                 },
+                                          "corrections_applied":  [
+
+                                                                  ]
+                                      },
+                         "file_path":  "uploads\\1773320674142-sample_invoice.png",
+                         "status":  "extracted",
+                         "_id":  "69b2b9f7c68ccba56c96ee78",
+                         "createdAt":  "2026-03-12T13:04:55.817Z",
+                         "updatedAt":  "2026-03-12T13:04:55.817Z",
+                         "__v":  0
+                     }
+                 ]
+}

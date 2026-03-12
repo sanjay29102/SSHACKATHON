@@ -10,8 +10,10 @@ const extractAndSaveInvoices = async (req, res) => {
         if (!req.files || req.files.length === 0) {
             return res.status(400).json({ message: "No files uploaded" });
         }
+        console.log('Starting extraction for files:', req.files.map(f => f.originalname));
 
         const batchData = await extractBatchInvoiceData(req.files);
+        console.log('Gemini returned batch data');
 
         // Save processed invoices to DB
         const savedInvoices = [];

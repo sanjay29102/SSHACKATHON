@@ -76,12 +76,13 @@ const extractBatchInvoiceData = async (files) => {
         const result = await model.generateContent([prompt, ...parts]);
         const response = await result.response;
         const text = response.text();
+        console.log("Raw Gemini Output:", text);
         
         const cleanText = text.replace(/```json|```/g, "").trim();
         return JSON.parse(cleanText);
     } catch (error) {
         console.error("Batch Extraction Error:", error);
-        throw new Error("Failed to process batch of invoices.");
+        throw new Error("Failed to process batch of invoices: " + error.message);
     }
 };
 
