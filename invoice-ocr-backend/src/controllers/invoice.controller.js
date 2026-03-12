@@ -2,6 +2,7 @@ const Invoice = require('../models/invoice.model');
 const { extractInvoiceData } = require('../services/gemini.service');
 const fs = require('fs');
 const { createObjectCsvWriter } = require('csv-writer');
+const ExcelJS = require('exceljs');
 const path = require('path');
 
 const extractAndSaveInvoice = async (req, res) => {
@@ -13,10 +14,8 @@ const extractAndSaveInvoice = async (req, res) => {
         const filePath = req.file.path;
         const mimeType = req.file.mimetype;
 
-        // Extract data using Gemini
         const extractedData = await extractInvoiceData(filePath, mimeType);
 
-        // Create new invoice record
         const invoice = new Invoice({
             ...extractedData,
             file_path: filePath,
@@ -85,8 +84,76 @@ const exportSingleToCSV = async (req, res) => {
         if (!invoice) return res.status(404).json({ message: "Invoice not found" });
 
         const csvPath = path.join(__dirname, `../../uploads/invoice_${invoice.invoice?.invoice_number || invoice._id}.csv`);
-        await writeInvoicesToCSV([invoice], csvPath);
+        
+        // Detailed Item-level CSV as requested
+        const csvWriter = createObjectCsvWriter({
+            path: csvPath,
+            header: [
+                { id: 'name', title: 'Item' },
+                { id: 'qty', title: 'Qty' },
+                { id: 'rate', title: 'Rate' },
+                { id: 'amount', title: 'Amount' }
+            ]
+        });
+
+        const records = invoice.items.map(item => ({
+            name: item.name || '',
+            qty: item.qty || 0,
+            rate: item.rate || 0,
+            amount: item.amount || 0
+        }));
+
+        await csvWriter.writeRecords(records);
         res.download(csvPath);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+const exportSingleToExcel = async (req, res) => {
+    try {
+        const invoice = await Invoice.findById(req.params.id);
+        if (!invoice) return res.status(404).json({ message: "Invoice not found" });
+
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Invoice');
+
+        worksheet.columns = [
+            { header: 'Item', key: 'name', width: 30 },
+            { header: 'Qty', key: 'qty', width: 10 },
+            { header: 'Rate', key: 'rate', width: 15 },
+            { header: 'Amount', key: 'amount', width: 15 }
+        ];
+
+        invoice.items.forEach(item => {
+            worksheet.addRow({
+                name: item.name,
+                qty: item.qty,
+                rate: item.rate,
+                amount: item.amount
+            });
+        });
+
+        // Add Totals row
+        worksheet.addRow({});
+        worksheet.addRow({ name: 'Grand Total', amount: invoice.totals?.grand_total || 0 });
+
+        const excelPath = path.join(__dirname, `../../uploads/invoice_${invoice.invoice?.invoice_number || invoice._id}.xlsx`);
+        await workbook.xlsx.writeFile(excelPath);
+        res.download(excelPath);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+const downloadJSON = async (req, res) => {
+    try {
+        const invoice = await Invoice.findById(req.params.id);
+        if (!invoice) return res.status(404).json({ message: "Invoice not found" });
+        
+        const jsonPath = path.join(__dirname, `../../uploads/invoice_${invoice.invoice?.invoice_number || invoice._id}.json`);
+        fs.writeFileSync(jsonPath, JSON.stringify(invoice, null, 2));
+        res.download(jsonPath);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -127,5 +194,7 @@ module.exports = {
     getInvoiceById,
     updateInvoice,
     exportToCSV,
-    exportSingleToCSV
+    exportSingleToCSV,
+    exportSingleToExcel,
+    downloadJSON
 };
