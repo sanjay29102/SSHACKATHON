@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const upload = require('../utils/fileHelper');
 const {
-    extractAndSaveInvoice,
+    extractAndSaveInvoices,
     getAllInvoices,
     getInvoiceById,
     updateInvoice,
@@ -12,8 +12,8 @@ const {
     downloadJSON
 } = require('../controllers/invoice.controller');
 
-// Upload and extract
-router.post('/extract', upload.single('invoice'), extractAndSaveInvoice);
+// Upload and extract (Batch supported)
+router.post('/extract', upload.array('invoices', 10), extractAndSaveInvoices);
 
 // CRUD
 router.get('/', getAllInvoices);

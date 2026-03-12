@@ -1,35 +1,38 @@
 const Invoice = require('../models/invoice.model');
-const { extractInvoiceData } = require('../services/gemini.service');
+const { extractBatchInvoiceData } = require('../services/gemini.service');
 const fs = require('fs');
 const { createObjectCsvWriter } = require('csv-writer');
 const ExcelJS = require('exceljs');
 const path = require('path');
 
-const extractAndSaveInvoice = async (req, res) => {
+const extractAndSaveInvoices = async (req, res) => {
     try {
-        if (!req.file) {
-            return res.status(400).json({ message: "No file uploaded" });
+        if (!req.files || req.files.length === 0) {
+            return res.status(400).json({ message: "No files uploaded" });
         }
 
-        const filePath = req.file.path;
-        const mimeType = req.file.mimetype;
+        const batchData = await extractBatchInvoiceData(req.files);
 
-        const extractedData = await extractInvoiceData(filePath, mimeType);
-
-        const invoice = new Invoice({
-            ...extractedData,
-            file_path: filePath,
-            raw_json: extractedData
-        });
-
-        await invoice.save();
+        // Save processed invoices to DB
+        const savedInvoices = [];
+        for (let i = 0; i < batchData.processed_invoices.length; i++) {
+            const data = batchData.processed_invoices[i];
+            const invoice = new Invoice({
+                ...data,
+                file_path: req.files[i]?.path || 'none',
+                raw_json: data
+            });
+            await invoice.save();
+            savedInvoices.push(invoice);
+        }
 
         res.status(201).json({
-            message: "Invoice extracted and validated successfully",
-            data: invoice
+            message: "Batch processed successfully",
+            dashboard: batchData.dashboard_summary,
+            invoices: savedInvoices
         });
     } catch (error) {
-        console.error("Extraction Controller Error:", error);
+        console.error("Batch Controller Error:", error);
         res.status(500).json({ message: error.message });
     }
 };
@@ -79,7 +82,7 @@ const exportToCSV = async (req, res) => {
                 { id: 'gstin', title: 'GSTIN' },
                 { id: 'invoice_no', title: 'Invoice No' },
                 { id: 'total', title: 'Total' },
-                { id: 'validation', title: 'Validation Status' }
+                { id: 'status', title: 'Status' }
             ]
         });
 
@@ -88,7 +91,7 @@ const exportToCSV = async (req, res) => {
             gstin: inv.supplier?.gstin || '',
             invoice_no: inv.invoice?.invoice_number || '',
             total: inv.totals?.grand_total || 0,
-            validation: inv.validation_results?.total_validation?.status || 'N/A'
+            status: inv.validation_results?.total_validation?.status || 'N/A'
         }));
 
         await csvWriter.writeRecords(records);
@@ -109,6 +112,7 @@ const exportSingleToCSV = async (req, res) => {
             path: csvPath,
             header: [
                 { id: 'name', title: 'Item' },
+                { id: 'hsn', title: 'HSN' },
                 { id: 'qty', title: 'Qty' },
                 { id: 'rate', title: 'Rate' },
                 { id: 'amount', title: 'Amount' },
@@ -118,6 +122,7 @@ const exportSingleToCSV = async (req, res) => {
 
         const records = invoice.items.map(item => ({
             name: item.name || '',
+            hsn: item.hsn_code || '',
             qty: item.qty || 0,
             rate: item.rate || 0,
             amount: item.amount || 0,
@@ -159,7 +164,6 @@ const exportSingleToExcel = async (req, res) => {
 
         worksheet.addRow({});
         worksheet.addRow({ name: 'Grand Total', amount: invoice.totals?.grand_total || 0 });
-        worksheet.addRow({ name: 'Validation Status', amount: invoice.validation_results?.total_validation?.status });
 
         const excelPath = path.join(__dirname, `../../uploads/invoice_${invoice.invoice?.invoice_number || invoice._id}.xlsx`);
         await workbook.xlsx.writeFile(excelPath);
@@ -183,7 +187,7 @@ const downloadJSON = async (req, res) => {
 };
 
 module.exports = {
-    extractAndSaveInvoice,
+    extractAndSaveInvoices,
     getAllInvoices,
     getInvoiceById,
     updateInvoice,

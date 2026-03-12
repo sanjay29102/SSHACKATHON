@@ -1,5 +1,13 @@
 const mongoose = require('mongoose');
 
+const CorrectionSchema = new mongoose.Schema({
+    field_name: String,
+    original_value: mongoose.Schema.Types.Mixed,
+    corrected_value: mongoose.Schema.Types.Mixed,
+    correction_reason: String,
+    correction_confidence: Number
+}, { _id: false });
+
 const InvoiceSchema = new mongoose.Schema({
     supplier: {
         name: String,
@@ -15,14 +23,14 @@ const InvoiceSchema = new mongoose.Schema({
     },
     items: [{
         name: String,
-        hsn: String,
+        hsn_code: String,
         qty: Number,
         uom: String,
         rate: Number,
         amount: Number,
         calculation_check: {
             expected_amount: Number,
-            status: String // "passed" or "failed"
+            status: String // "passed" or "corrected"
         }
     }],
     tax: {
@@ -36,14 +44,13 @@ const InvoiceSchema = new mongoose.Schema({
         grand_total: Number
     },
     validation_results: {
-        gstin_validation: {
-            status: String // "valid" or "invalid"
-        },
+        gstin_validation_status: String, // "valid" or "invalid"
         total_validation: {
             expected_grand_total: Number,
-            status: String // "passed" or "failed"
+            status: String // "passed" or "corrected"
         }
     },
+    corrections_applied: [CorrectionSchema],
     raw_json: Object,
     file_path: String,
     status: {

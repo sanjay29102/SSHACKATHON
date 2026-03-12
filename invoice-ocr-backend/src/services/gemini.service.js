@@ -13,67 +13,76 @@ function fileToGenerativePart(path, mimeType) {
   };
 }
 
-const extractInvoiceData = async (filePath, mimeType) => {
+const extractBatchInvoiceData = async (files) => {
     const prompt = `
-    You are an AI system designed to extract and validate purchase invoice data for accounting automation.
-    Analyze the provided invoice image or document carefully and perform the following tasks:
-    1. Extract structured invoice information.
-    2. Validate financial calculations.
-    3. Validate supplier GSTIN format.
-    4. Validate item-level calculations.
+    You are an AI financial document intelligence system designed to process, validate, correct, and summarize purchase invoices for accounting automation.
+    You have received a batch of invoice documents. Process EVERY invoice carefully.
 
-    Return the output strictly as valid JSON only with no explanations or markdown.
-
-    Extraction Requirements:
-    - Supplier Information: supplier_name, gstin, supplier_address, supplier_phone
-    - Invoice Information: invoice_number, invoice_date, place_of_supply, payment_terms
-    - Items: For each item: name, hsn, qty, uom, rate, amount
-    - Tax Information: cgst, sgst, igst
+    Step 1 — Multi-Invoice Extraction
+    For each document, extract:
+    - Supplier: name, gstin, address, phone
+    - Invoice: invoice_number, invoice_date (ISO YYYY-MM-DD), place_of_supply, payment_terms
+    - Items: name, hsn_code, qty, uom, rate, amount
+    - Tax: cgst, sgst, igst
     - Totals: sub_total, tax_total, grand_total
 
-    Validation Requirements:
-    1. GSTIN Validation: Check if 15 chars, state code (first 2), PAN (next 10), and structure. Status: "valid" or "invalid".
-    2. Item Calculation: qty × rate = expected_amount. Status: "passed" or "failed".
-    3. Tax and Total Validation: sub_total + cgst + sgst + igst = expected_grand_total. Status: "passed" or "failed".
+    Step 2 — AI Auto-Correction and Validation
+    - Item Calculation: Verify qty × rate = amount. If wrong, recalculate and set status to "corrected", original stays in corrections list.
+    - Tax/Total Validation: Verify sub_total + taxes = grand_total. If wrong, recalculate and set status to "corrected".
+    - GSTIN: Check if valid Indian GST format (15 chars, state code, etc). Status: valid/invalid.
+    - OCR Error Detection: Correct obvious mistakes. Track corrections in "corrections_applied" list: { field_name, original_value, corrected_value, correction_reason, correction_confidence }.
 
-    Return the result strictly in this JSON structure:
+    Step 3 — Invoice Summary Dashboard Generation
+    Generate analytics across ALL processed invoices:
+    - General: total_invoices_processed, total_invoice_amount, total_tax_amount, average_invoice_value
+    - Supplier: top_suppliers_by_total_invoice_value, most_frequent_supplier, supplier_invoice_counts
+    - Insights: duplicate_invoice_numbers, invoices_with_missing_fields, invoices_with_validation_errors
+    - Time Analysis: monthly_invoice_totals, highest_spending_month
+
+    Output Format:
+    Return ONLY valid JSON in this structure:
     {
-      "supplier": { "name": "", "gstin": "", "address": "", "phone": "" },
-      "invoice": { "invoice_number": "", "invoice_date": "", "place_of_supply": "", "payment_terms": "" },
-      "items": [
+      "processed_invoices": [
         {
-          "name": "", "hsn": "", "qty": 0, "uom": "", "rate": 0, "amount": 0,
-          "calculation_check": { "expected_amount": 0, "status": "passed or failed" }
+          "supplier": { "name": "", "gstin": "", "address": "", "phone": "" },
+          "invoice": { "invoice_number": "", "invoice_date": "", "place_of_supply": "", "payment_terms": "" },
+          "items": [
+            { "name": "", "hsn_code": "", "qty": 0, "uom": "", "rate": 0, "amount": 0, "calculation_check": { "expected_amount": 0, "status": "passed or corrected" } }
+          ],
+          "tax": { "cgst": 0, "sgst": 0, "igst": 0 },
+          "totals": { "sub_total": 0, "tax_total": 0, "grand_total": 0 },
+          "validation_results": { "gstin_validation_status": "valid or invalid", "total_validation": { "expected_grand_total": 0, "status": "passed or corrected" } },
+          "corrections_applied": []
         }
       ],
-      "tax": { "cgst": 0, "sgst": 0, "igst": 0 },
-      "totals": { "sub_total": 0, "tax_total": 0, "grand_total": 0 },
-      "validation_results": {
-        "gstin_validation": { "status": "valid or invalid" },
-        "total_validation": { "expected_grand_total": 0, "status": "passed or failed" }
+      "dashboard_summary": {
+        "general_metrics": {},
+        "supplier_insights": {},
+        "invoice_insights": {},
+        "time_analysis": {}
       }
     }
 
     Important Rules:
-    - Return ONLY valid JSON.
-    - No markdown formatting (no \`\`\`json blocks).
-    - Numeric values must be numbers.
-    - If data cannot be detected, return null for that field.
+    - Return ONLY valid JSON. No markdown.
+    - Normalized dates to ISO YYYY-MM-DD.
+    - Numbers MUST be numbers.
+    - No explanations.
     `;
 
     try {
-        const imagePart = fileToGenerativePart(filePath, mimeType);
-        const result = await model.generateContent([prompt, imagePart]);
+        const parts = files.map(file => fileToGenerativePart(file.path, file.mimetype));
+        
+        const result = await model.generateContent([prompt, ...parts]);
         const response = await result.response;
         const text = response.text();
         
-        // Clean up text in case Gemini adds markdown code blocks despite instructions
         const cleanText = text.replace(/```json|```/g, "").trim();
         return JSON.parse(cleanText);
     } catch (error) {
-        console.error("Gemini Extraction Error:", error);
-        throw new Error("Failed to extract and validate invoice data.");
+        console.error("Batch Extraction Error:", error);
+        throw new Error("Failed to process batch of invoices.");
     }
 };
 
-module.exports = { extractInvoiceData };
+module.exports = { extractBatchInvoiceData };
