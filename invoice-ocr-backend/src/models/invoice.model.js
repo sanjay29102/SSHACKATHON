@@ -1,49 +1,51 @@
 const mongoose = require('mongoose');
 
-const FieldSchema = new mongoose.Schema({
-    value: mongoose.Schema.Types.Mixed,
-    confidence: {
-        type: Number, // Percentage 0-100
-        min: 0,
-        max: 100,
-        default: 0
-    }
-}, { _id: false });
-
 const InvoiceSchema = new mongoose.Schema({
     supplier: {
-        name: FieldSchema,
-        gstin: FieldSchema,
-        address: FieldSchema,
-        phone: FieldSchema
+        name: String,
+        gstin: String,
+        address: String,
+        phone: String
     },
     invoice: {
-        invoice_number: FieldSchema,
-        invoice_date: FieldSchema,
-        place_of_supply: FieldSchema,
-        payment_terms: FieldSchema
+        invoice_number: String,
+        invoice_date: String,
+        place_of_supply: String,
+        payment_terms: String
     },
     items: [{
-        name: FieldSchema,
-        hsn: FieldSchema,
-        qty: FieldSchema,
-        uom: FieldSchema,
-        rate: FieldSchema,
-        amount: FieldSchema
+        name: String,
+        hsn: String,
+        qty: Number,
+        uom: String,
+        rate: Number,
+        amount: Number,
+        calculation_check: {
+            expected_amount: Number,
+            status: String // "passed" or "failed"
+        }
     }],
     tax: {
-        cgst: FieldSchema,
-        sgst: FieldSchema,
-        igst: FieldSchema
+        cgst: Number,
+        sgst: Number,
+        igst: Number
     },
     totals: {
-        sub_total: FieldSchema,
-        tax_total: FieldSchema,
-        grand_total: FieldSchema
+        sub_total: Number,
+        tax_total: Number,
+        grand_total: Number
+    },
+    validation_results: {
+        gstin_validation: {
+            status: String // "valid" or "invalid"
+        },
+        total_validation: {
+            expected_grand_total: Number,
+            status: String // "passed" or "failed"
+        }
     },
     raw_json: Object,
     file_path: String,
-    validation_errors: [String],
     status: {
         type: String,
         enum: ['extracted', 'edited', 'validated'],

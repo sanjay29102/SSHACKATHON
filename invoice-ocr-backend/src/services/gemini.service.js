@@ -15,54 +15,50 @@ function fileToGenerativePart(path, mimeType) {
 
 const extractInvoiceData = async (filePath, mimeType) => {
     const prompt = `
-    You are an expert invoice parser. Extract the following information from the provided invoice image or PDF and return it in a strictly structured JSON format.
-    
-    CRITICAL: For EVERY single field, you must provide:
-    1. "value": The extracted data.
-    2. "confidence": A numerical percentage from 0 to 100 representing your confidence in the extraction (e.g., 96).
+    You are an AI system designed to extract and validate purchase invoice data for accounting automation.
+    Analyze the provided invoice image or document carefully and perform the following tasks:
+    1. Extract structured invoice information.
+    2. Validate financial calculations.
+    3. Validate supplier GSTIN format.
+    4. Validate item-level calculations.
 
-    If a field is not found, set "value" to null and "confidence" to 0.
+    Return the output strictly as valid JSON only with no explanations or markdown.
 
-    Required JSON Structure:
+    Extraction Requirements:
+    - Supplier Information: supplier_name, gstin, supplier_address, supplier_phone
+    - Invoice Information: invoice_number, invoice_date, place_of_supply, payment_terms
+    - Items: For each item: name, hsn, qty, uom, rate, amount
+    - Tax Information: cgst, sgst, igst
+    - Totals: sub_total, tax_total, grand_total
+
+    Validation Requirements:
+    1. GSTIN Validation: Check if 15 chars, state code (first 2), PAN (next 10), and structure. Status: "valid" or "invalid".
+    2. Item Calculation: qty × rate = expected_amount. Status: "passed" or "failed".
+    3. Tax and Total Validation: sub_total + cgst + sgst + igst = expected_grand_total. Status: "passed" or "failed".
+
+    Return the result strictly in this JSON structure:
     {
-      "supplier": {
-        "name": { "value": "", "confidence": 0 },
-        "gstin": { "value": "", "confidence": 0 },
-        "address": { "value": "", "confidence": 0 },
-        "phone": { "value": "", "confidence": 0 }
-      },
-      "invoice": {
-        "invoice_number": { "value": "", "confidence": 0 },
-        "invoice_date": { "value": "", "confidence": 0 },
-        "place_of_supply": { "value": "", "confidence": 0 },
-        "payment_terms": { "value": "", "confidence": 0 }
-      },
+      "supplier": { "name": "", "gstin": "", "address": "", "phone": "" },
+      "invoice": { "invoice_number": "", "invoice_date": "", "place_of_supply": "", "payment_terms": "" },
       "items": [
         {
-          "name": { "value": "", "confidence": 0 },
-          "hsn": { "value": "", "confidence": 0 },
-          "qty": { "value": 0, "confidence": 0 },
-          "uom": { "value": "", "confidence": 0 },
-          "rate": { "value": 0, "confidence": 0 },
-          "amount": { "value": 0, "confidence": 0 }
+          "name": "", "hsn": "", "qty": 0, "uom": "", "rate": 0, "amount": 0,
+          "calculation_check": { "expected_amount": 0, "status": "passed or failed" }
         }
       ],
-      "tax": {
-        "cgst": { "value": 0, "confidence": 0 },
-        "sgst": { "value": 0, "confidence": 0 },
-        "igst": { "value": 0, "confidence": 0 }
-      },
-      "totals": {
-        "sub_total": { "value": 0, "confidence": 0 },
-        "tax_total": { "value": 0, "confidence": 0 },
-        "grand_total": { "value": 0, "confidence": 0 }
+      "tax": { "cgst": 0, "sgst": 0, "igst": 0 },
+      "totals": { "sub_total": 0, "tax_total": 0, "grand_total": 0 },
+      "validation_results": {
+        "gstin_validation": { "status": "valid or invalid" },
+        "total_validation": { "expected_grand_total": 0, "status": "passed or failed" }
       }
     }
 
-    Rules:
-    1. Numeric values in "value" must be numbers.
-    2. Confidence must be an integer between 0 and 100.
-    3. Return ONLY the JSON object.
+    Important Rules:
+    - Return ONLY valid JSON.
+    - No markdown formatting (no \`\`\`json blocks).
+    - Numeric values must be numbers.
+    - If data cannot be detected, return null for that field.
     `;
 
     try {
@@ -71,11 +67,12 @@ const extractInvoiceData = async (filePath, mimeType) => {
         const response = await result.response;
         const text = response.text();
         
+        // Clean up text in case Gemini adds markdown code blocks despite instructions
         const cleanText = text.replace(/```json|```/g, "").trim();
         return JSON.parse(cleanText);
     } catch (error) {
         console.error("Gemini Extraction Error:", error);
-        throw new Error("Failed to extract data with percentage scores.");
+        throw new Error("Failed to extract and validate invoice data.");
     }
 };
 
