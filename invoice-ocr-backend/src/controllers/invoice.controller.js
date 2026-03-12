@@ -4,6 +4,7 @@ const fs = require('fs');
 const { createObjectCsvWriter } = require('csv-writer');
 const ExcelJS = require('exceljs');
 const path = require('path');
+const { validateInvoiceData } = require('../utils/validator');
 
 const extractAndSaveInvoice = async (req, res) => {
     try {
@@ -16,16 +17,20 @@ const extractAndSaveInvoice = async (req, res) => {
 
         const extractedData = await extractInvoiceData(filePath, mimeType);
 
+        // Run Smart Validation
+        const validationErrors = validateInvoiceData(extractedData);
+
         const invoice = new Invoice({
             ...extractedData,
             file_path: filePath,
+            validation_errors: validationErrors,
             raw_json: extractedData
         });
 
         await invoice.save();
 
         res.status(201).json({
-            message: "Invoice extracted and saved successfully",
+            message: "Invoice extracted with percentage confidence",
             data: invoice
         });
     } catch (error) {
@@ -55,9 +60,12 @@ const getInvoiceById = async (req, res) => {
 
 const updateInvoice = async (req, res) => {
     try {
+        // Re-run validation on the updated data
+        const validationErrors = validateInvoiceData(req.body);
+
         const invoice = await Invoice.findByIdAndUpdate(
             req.params.id,
-            { ...req.body, status: 'edited' },
+            { ...req.body, status: 'edited', validation_errors: validationErrors },
             { new: true }
         );
         if (!invoice) return res.status(404).json({ message: "Invoice not found" });
@@ -83,9 +91,8 @@ const exportSingleToCSV = async (req, res) => {
         const invoice = await Invoice.findById(req.params.id);
         if (!invoice) return res.status(404).json({ message: "Invoice not found" });
 
-        const csvPath = path.join(__dirname, `../../uploads/invoice_${invoice.invoice?.invoice_number || invoice._id}.csv`);
+        const csvPath = path.join(__dirname, `../../uploads/invoice_${invoice.invoice?.invoice_number?.value || invoice._id}.csv`);
         
-        // Detailed Item-level CSV as requested
         const csvWriter = createObjectCsvWriter({
             path: csvPath,
             header: [
@@ -97,10 +104,10 @@ const exportSingleToCSV = async (req, res) => {
         });
 
         const records = invoice.items.map(item => ({
-            name: item.name || '',
-            qty: item.qty || 0,
-            rate: item.rate || 0,
-            amount: item.amount || 0
+            name: `${item.name?.value || ''} (${item.name?.confidence || 0}%)`,
+            qty: `${item.qty?.value || 0} (${item.qty?.confidence || 0}%)`,
+            rate: `${item.rate?.value || 0} (${item.rate?.confidence || 0}%)`,
+            amount: `${item.amount?.value || 0} (${item.amount?.confidence || 0}%)`
         }));
 
         await csvWriter.writeRecords(records);
@@ -119,26 +126,28 @@ const exportSingleToExcel = async (req, res) => {
         const worksheet = workbook.addWorksheet('Invoice');
 
         worksheet.columns = [
-            { header: 'Item', key: 'name', width: 30 },
-            { header: 'Qty', key: 'qty', width: 10 },
+            { header: 'Item', key: 'name', width: 40 },
+            { header: 'Qty', key: 'qty', width: 15 },
             { header: 'Rate', key: 'rate', width: 15 },
             { header: 'Amount', key: 'amount', width: 15 }
         ];
 
         invoice.items.forEach(item => {
             worksheet.addRow({
-                name: item.name,
-                qty: item.qty,
-                rate: item.rate,
-                amount: item.amount
+                name: `${item.name?.value} (${item.name?.confidence}%)`,
+                qty: `${item.qty?.value} (${item.qty?.confidence}%)`,
+                rate: `${item.rate?.value} (${item.rate?.confidence}%)`,
+                amount: `${item.amount?.value} (${item.amount?.confidence}%)`
             });
         });
 
-        // Add Totals row
         worksheet.addRow({});
-        worksheet.addRow({ name: 'Grand Total', amount: invoice.totals?.grand_total || 0 });
+        worksheet.addRow({ 
+            name: `Grand Total (${invoice.totals?.grand_total?.confidence}%)`, 
+            amount: invoice.totals?.grand_total?.value || 0 
+        });
 
-        const excelPath = path.join(__dirname, `../../uploads/invoice_${invoice.invoice?.invoice_number || invoice._id}.xlsx`);
+        const excelPath = path.join(__dirname, `../../uploads/invoice_${invoice.invoice?.invoice_number?.value || invoice._id}.xlsx`);
         await workbook.xlsx.writeFile(excelPath);
         res.download(excelPath);
     } catch (error) {
@@ -151,7 +160,7 @@ const downloadJSON = async (req, res) => {
         const invoice = await Invoice.findById(req.params.id);
         if (!invoice) return res.status(404).json({ message: "Invoice not found" });
         
-        const jsonPath = path.join(__dirname, `../../uploads/invoice_${invoice.invoice?.invoice_number || invoice._id}.json`);
+        const jsonPath = path.join(__dirname, `../../uploads/invoice_${invoice.invoice?.invoice_number?.value || invoice._id}.json`);
         fs.writeFileSync(jsonPath, JSON.stringify(invoice, null, 2));
         res.download(jsonPath);
     } catch (error) {
@@ -175,13 +184,13 @@ const writeInvoicesToCSV = async (invoices, filePath) => {
     });
 
     const records = invoices.map(inv => ({
-        supplier_name: inv.supplier?.name || '',
-        supplier_gstin: inv.supplier?.gstin || '',
-        invoice_number: inv.invoice?.invoice_number || '',
-        date: inv.invoice?.invoice_date || '',
-        sub_total: inv.totals?.sub_total || 0,
-        tax_total: inv.totals?.tax_total || 0,
-        grand_total: inv.totals?.grand_total || 0,
+        supplier_name: `${inv.supplier?.name?.value || ''} (${inv.supplier?.name?.confidence || 0}%)`,
+        supplier_gstin: `${inv.supplier?.gstin?.value || ''} (${inv.supplier?.gstin?.confidence || 0}%)`,
+        invoice_number: `${inv.invoice?.invoice_number?.value || ''} (${inv.invoice?.invoice_number?.confidence || 0}%)`,
+        date: `${inv.invoice?.invoice_date?.value || ''} (${inv.invoice?.invoice_date?.confidence || 0}%)`,
+        sub_total: inv.totals?.sub_total?.value || 0,
+        tax_total: inv.totals?.tax_total?.value || 0,
+        grand_total: inv.totals?.grand_total?.value || 0,
         status: inv.status
     }));
 

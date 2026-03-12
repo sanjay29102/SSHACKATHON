@@ -6,7 +6,7 @@ An AI-powered system that handles purchase invoice extraction using Gemini 1.5 F
 
 - **Multimodal OCR**: Direct PDF/Image extraction via Google Gemini 1.5 Flash.
 - **Structured Data**: Extracts Supplier, Invoice details, Items, Taxes, and Totals.
-- **Confidence Scores**: AI-assigned confidence (High/Medium/Low) for extracted fields.
+- **Confidence Scores**: AI-assigned numerical confidence (e.g., 96%) for every field.
 - **Manual Edits**: Update any extracted field before final export.
 - **Multi-Format Export**:
   - Detailed Item-level CSV (`Item, Qty, Rate, Amount`).
