@@ -31,6 +31,11 @@ app.get('/', (req, res) => {
     res.send('Invoice OCR API is running...');
 });
 
+app.use((err, req, res, next) => {
+    console.error('SERVER ERROR:', err);
+    res.status(500).json({ error: err.message, stack: err.stack });
+});
+
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {

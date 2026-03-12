@@ -1,0 +1,118 @@
+﻿{
+    "message":  "Batch processed and categorized successfully",
+    "total_invoices":  1,
+    "invoices":  [
+                     {
+                         "invoice_category":  "Textiles",
+                         "supplier":  {
+                                          "name":  "Global Traders",
+                                          "gstin":  "27AAAAA0000A1Z5",
+                                          "address":  null,
+                                          "phone":  null
+                                      },
+                         "invoice":  {
+                                         "invoice_number":  "INV-9901",
+                                         "invoice_date":  "2026-03-10",
+                                         "place_of_supply":  "Mumbai",
+                                         "payment_terms":  "30 Days"
+                                     },
+                         "items":  [
+                                       {
+                                           "item_name":  "Cotton Yarn",
+                                           "item_category":  "Textiles",
+                                           "hsn_code":  null,
+                                           "quantity":  2,
+                                           "unit_of_measure":  null,
+                                           "rate":  500,
+                                           "amount":  1000,
+                                           "_id":  "69b2c3df259f2f97bbe5fc06"
+                                       },
+                                       {
+                                           "item_name":  "Silk Thread",
+                                           "item_category":  "Textiles",
+                                           "hsn_code":  null,
+                                           "quantity":  5,
+                                           "unit_of_measure":  null,
+                                           "rate":  200,
+                                           "amount":  1000,
+                                           "_id":  "69b2c3df259f2f97bbe5fc07"
+                                       }
+                                   ],
+                         "tax":  {
+                                     "cgst":  180,
+                                     "sgst":  180,
+                                     "igst":  0
+                                 },
+                         "totals":  {
+                                        "sub_total":  2000,
+                                        "tax_total":  360,
+                                        "grand_total":  2360
+                                    },
+                         "confidence_scores":  {
+                                                   "supplier_name":  100,
+                                                   "supplier_gstin":  100,
+                                                   "invoice_number":  100,
+                                                   "invoice_date":  100,
+                                                   "grand_total":  100
+                                               },
+                         "raw_json":  {
+                                          "invoice_category":  "Textiles",
+                                          "supplier":  {
+                                                           "name":  "Global Traders",
+                                                           "gstin":  "27AAAAA0000A1Z5",
+                                                           "address":  null,
+                                                           "phone":  null
+                                                       },
+                                          "invoice":  {
+                                                          "invoice_number":  "INV-9901",
+                                                          "invoice_date":  "2026-03-10",
+                                                          "place_of_supply":  "Mumbai",
+                                                          "payment_terms":  "30 Days"
+                                                      },
+                                          "items":  [
+                                                        {
+                                                            "item_name":  "Cotton Yarn",
+                                                            "item_category":  "Textiles",
+                                                            "hsn_code":  null,
+                                                            "quantity":  2,
+                                                            "unit_of_measure":  null,
+                                                            "rate":  500,
+                                                            "amount":  1000
+                                                        },
+                                                        {
+                                                            "item_name":  "Silk Thread",
+                                                            "item_category":  "Textiles",
+                                                            "hsn_code":  null,
+                                                            "quantity":  5,
+                                                            "unit_of_measure":  null,
+                                                            "rate":  200,
+                                                            "amount":  1000
+                                                        }
+                                                    ],
+                                          "tax":  {
+                                                      "cgst":  180,
+                                                      "sgst":  180,
+                                                      "igst":  0
+                                                  },
+                                          "totals":  {
+                                                         "sub_total":  2000,
+                                                         "tax_total":  360,
+                                                         "grand_total":  2360
+                                                     },
+                                          "confidence_scores":  {
+                                                                    "supplier_name":  100,
+                                                                    "supplier_gstin":  100,
+                                                                    "invoice_number":  100,
+                                                                    "invoice_date":  100,
+                                                                    "grand_total":  100
+                                                                }
+                                      },
+                         "file_path":  "uploads\\1773323220788-sample_invoice.png",
+                         "status":  "extracted",
+                         "_id":  "69b2c3df259f2f97bbe5fc05",
+                         "createdAt":  "2026-03-12T13:47:11.071Z",
+                         "updatedAt":  "2026-03-12T13:47:11.071Z",
+                         "__v":  0
+                     }
+                 ]
+}

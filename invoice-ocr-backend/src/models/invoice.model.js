@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 
 const InvoiceSchema = new mongoose.Schema({
+    invoice_category: String,
     supplier: {
         name: String,
         gstin: String,
@@ -14,10 +15,11 @@ const InvoiceSchema = new mongoose.Schema({
         payment_terms: String
     },
     items: [{
-        name: String,
-        hsn: String,
-        qty: Number,
-        uom: String,
+        item_name: String,
+        item_category: String,
+        hsn_code: String,
+        quantity: Number,
+        unit_of_measure: String,
         rate: Number,
         amount: Number
     }],
@@ -32,8 +34,11 @@ const InvoiceSchema = new mongoose.Schema({
         grand_total: Number
     },
     confidence_scores: {
-        type: Map,
-        of: String // High, Medium, Low
+        supplier_name: Number,
+        supplier_gstin: Number,
+        invoice_number: Number,
+        invoice_date: Number,
+        grand_total: Number
     },
     raw_json: Object,
     file_path: String,

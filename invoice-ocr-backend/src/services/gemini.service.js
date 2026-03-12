@@ -13,41 +13,84 @@ function fileToGenerativePart(path, mimeType) {
   };
 }
 
-const extractInvoiceData = async (filePath, mimeType) => {
+const extractBatchInvoiceData = async (files) => {
     const prompt = `
-    You are an expert invoice parser. Extract the following information from the provided invoice image or PDF and return it in a strictly structured JSON format.
-    
-    The JSON structure should be:
+    You are an AI system designed to process multiple purchase invoices and categorize them for accounting and financial analysis.
+    You will receive a batch of invoice documents. Process ALL of them individually.
+
+    Step 1 — Multi-Invoice Processing
+    For each invoice: detect, extract, and normalize data into a consistent structure.
+    If a field cannot be detected clearly, return null.
+
+    Step 2 — Extract Invoice Data
+    For each invoice extract:
+    - Supplier: supplier_name, supplier_gstin, supplier_address, supplier_phone
+    - Invoice: invoice_number, invoice_date (ISO YYYY-MM-DD), place_of_supply, payment_terms
+    - Items (ALL rows): item_name, hsn_code, quantity, unit_of_measure, rate, amount
+    - Tax: cgst, sgst, igst
+    - Totals: sub_total, tax_total, grand_total
+
+    Step 3 — Invoice Categorization
+    Classify each invoice into one of these categories:
+    Textiles, Electronics, Office Supplies, Machinery, Packaging Materials, Raw Materials, Transportation, Services, Utilities, Other
+    Also assign an item_category to each item individually.
+    Base the invoice_category on the majority of items.
+    If unsure, return "Other".
+
+    Step 4 — Confidence Scores
+    Estimate a confidence percentage (0–100) for these fields in each invoice:
+    - supplier_name: 100 = clearly visible, 70–90 = inferred, 40–60 = uncertain, 0–30 = guessed
+    - supplier_gstin
+    - invoice_number
+    - invoice_date
+    - grand_total
+
+    Step 5 — Return structured output
+
+    Output Format — Return ONLY valid JSON, no markdown, no explanation:
     {
-      "supplier": { "name": "", "gstin": "", "address": "", "phone": "" },
-      "invoice": { "invoice_number": "", "invoice_date": "", "place_of_supply": "", "payment_terms": "" },
-      "items": [ { "name": "", "hsn": "", "qty": 0, "uom": "", "rate": 0, "amount": 0 } ],
-      "tax": { "cgst": 0, "sgst": 0, "igst": 0 },
-      "totals": { "sub_total": 0, "tax_total": 0, "grand_total": 0 },
-      "confidence_scores": { "supplier_name": "High/Medium/Low", "invoice_number": "High/Medium/Low", "total_amount": "High/Medium/Low" }
+      "processed_invoices": [
+        {
+          "invoice_category": "",
+          "supplier": { "name": "", "gstin": "", "address": "", "phone": "" },
+          "invoice": { "invoice_number": "", "invoice_date": "", "place_of_supply": "", "payment_terms": "" },
+          "items": [
+            { "item_name": "", "item_category": "", "hsn_code": "", "quantity": 0, "unit_of_measure": "", "rate": 0, "amount": 0 }
+          ],
+          "tax": { "cgst": 0, "sgst": 0, "igst": 0 },
+          "totals": { "sub_total": 0, "tax_total": 0, "grand_total": 0 },
+          "confidence_scores": {
+            "supplier_name": 0,
+            "supplier_gstin": 0,
+            "invoice_number": 0,
+            "invoice_date": 0,
+            "grand_total": 0
+          }
+        }
+      ]
     }
 
-    Rules:
-    1. If a field is missing, use null or an empty string.
-    2. Ensure numeric values are numbers, not strings.
-    3. If there are multiple items, extract all of them into the "items" array.
-    4. Provide a confidence score (High, Medium, or Low) for the key fields mentioned in the structure.
-    5. Return ONLY the JSON object, no markdown formatting or extra text.
+    Important Rules:
+    - Return ONLY valid JSON.
+    - No markdown formatting.
+    - Do not invent values. If missing, return null.
+    - Numbers must be numeric.
+    - Dates must be ISO YYYY-MM-DD.
     `;
 
     try {
-        const imagePart = fileToGenerativePart(filePath, mimeType);
-        const result = await model.generateContent([prompt, imagePart]);
+        const parts = files.map(file => fileToGenerativePart(file.path, file.mimetype));
+        
+        const result = await model.generateContent([prompt, ...parts]);
         const response = await result.response;
         const text = response.text();
         
-        // Clean up text in case Gemini adds markdown code blocks
         const cleanText = text.replace(/```json|```/g, "").trim();
         return JSON.parse(cleanText);
     } catch (error) {
-        console.error("Gemini Extraction Error:", error);
-        throw new Error("Failed to extract data from invoice.");
+        console.error("Batch Extraction Error:", error);
+        throw new Error("Failed to process batch of invoices: " + error.message);
     }
 };
 
-module.exports = { extractInvoiceData };
+module.exports = { extractBatchInvoiceData };
