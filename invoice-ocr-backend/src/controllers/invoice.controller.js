@@ -13,14 +13,19 @@ const extractAndSaveInvoices = async (req, res) => {
         console.log('Starting extraction for files:', req.files.map(f => f.originalname));
 
         const batchData = await extractBatchInvoiceData(req.files);
-        console.log('Gemini returned batch data');
+        console.log('Gemini returned batch data successfully');
 
-        // Save processed invoices to DB
         const savedInvoices = [];
         for (let i = 0; i < batchData.processed_invoices.length; i++) {
             const data = batchData.processed_invoices[i];
             const invoice = new Invoice({
-                ...data,
+                invoice_category: data.invoice_category,
+                supplier: data.supplier,
+                invoice: data.invoice,
+                items: data.items,
+                tax: data.tax,
+                totals: data.totals,
+                confidence_scores: data.confidence_scores,
                 file_path: req.files[i]?.path || 'none',
                 raw_json: data
             });
@@ -29,8 +34,8 @@ const extractAndSaveInvoices = async (req, res) => {
         }
 
         res.status(201).json({
-            message: "Batch processed successfully",
-            dashboard: batchData.dashboard_summary,
+            message: "Batch processed and categorized successfully",
+            total_invoices: savedInvoices.length,
             invoices: savedInvoices
         });
     } catch (error) {
@@ -76,24 +81,30 @@ const exportToCSV = async (req, res) => {
     try {
         const invoices = await Invoice.find();
         const csvPath = path.join(__dirname, '../../uploads/all_invoices.csv');
-        
+
         const csvWriter = createObjectCsvWriter({
             path: csvPath,
             header: [
+                { id: 'category', title: 'Category' },
                 { id: 'supplier', title: 'Supplier' },
                 { id: 'gstin', title: 'GSTIN' },
                 { id: 'invoice_no', title: 'Invoice No' },
-                { id: 'total', title: 'Total' },
-                { id: 'status', title: 'Status' }
+                { id: 'date', title: 'Date' },
+                { id: 'grand_total', title: 'Grand Total' },
+                { id: 'confidence_supplier', title: 'Supplier Confidence (%)' },
+                { id: 'confidence_total', title: 'Total Confidence (%)' }
             ]
         });
 
         const records = invoices.map(inv => ({
+            category: inv.invoice_category || '',
             supplier: inv.supplier?.name || '',
             gstin: inv.supplier?.gstin || '',
             invoice_no: inv.invoice?.invoice_number || '',
-            total: inv.totals?.grand_total || 0,
-            status: inv.validation_results?.total_validation?.status || 'N/A'
+            date: inv.invoice?.invoice_date || '',
+            grand_total: inv.totals?.grand_total || 0,
+            confidence_supplier: inv.confidence_scores?.supplier_name || 0,
+            confidence_total: inv.confidence_scores?.grand_total || 0
         }));
 
         await csvWriter.writeRecords(records);
@@ -109,26 +120,26 @@ const exportSingleToCSV = async (req, res) => {
         if (!invoice) return res.status(404).json({ message: "Invoice not found" });
 
         const csvPath = path.join(__dirname, `../../uploads/invoice_${invoice.invoice?.invoice_number || invoice._id}.csv`);
-        
+
         const csvWriter = createObjectCsvWriter({
             path: csvPath,
             header: [
+                { id: 'item_category', title: 'Item Category' },
                 { id: 'name', title: 'Item' },
                 { id: 'hsn', title: 'HSN' },
                 { id: 'qty', title: 'Qty' },
                 { id: 'rate', title: 'Rate' },
-                { id: 'amount', title: 'Amount' },
-                { id: 'status', title: 'Calc Status' }
+                { id: 'amount', title: 'Amount' }
             ]
         });
 
         const records = invoice.items.map(item => ({
-            name: item.name || '',
+            item_category: item.item_category || '',
+            name: item.item_name || '',
             hsn: item.hsn_code || '',
-            qty: item.qty || 0,
+            qty: item.quantity || 0,
             rate: item.rate || 0,
-            amount: item.amount || 0,
-            status: item.calculation_check?.status || ''
+            amount: item.amount || 0
         }));
 
         await csvWriter.writeRecords(records);
@@ -144,28 +155,32 @@ const exportSingleToExcel = async (req, res) => {
         if (!invoice) return res.status(404).json({ message: "Invoice not found" });
 
         const workbook = new ExcelJS.Workbook();
-        const worksheet = workbook.addWorksheet('Invoice');
+        const ws = workbook.addWorksheet('Invoice');
 
-        worksheet.columns = [
-            { header: 'Item', key: 'name', width: 30 },
-            { header: 'Qty', key: 'qty', width: 10 },
-            { header: 'Rate', key: 'rate', width: 15 },
-            { header: 'Amount', key: 'amount', width: 15 },
-            { header: 'Status', key: 'status', width: 15 }
-        ];
+        // Header meta
+        ws.addRow(['Invoice Category', invoice.invoice_category || 'N/A']);
+        ws.addRow(['Supplier', invoice.supplier?.name || '']);
+        ws.addRow(['Invoice No', invoice.invoice?.invoice_number || '']);
+        ws.addRow(['Invoice Date', invoice.invoice?.invoice_date || '']);
+        ws.addRow([]);
 
+        // Items table
+        ws.addRow(['Item Category', 'Item', 'Qty', 'Rate', 'Amount']);
         invoice.items.forEach(item => {
-            worksheet.addRow({
-                name: item.name,
-                qty: item.qty,
-                rate: item.rate,
-                amount: item.amount,
-                status: item.calculation_check?.status
-            });
+            ws.addRow([item.item_category, item.item_name, item.quantity, item.rate, item.amount]);
         });
 
-        worksheet.addRow({});
-        worksheet.addRow({ name: 'Grand Total', amount: invoice.totals?.grand_total || 0 });
+        ws.addRow([]);
+        ws.addRow(['Sub Total', '', '', '', invoice.totals?.sub_total || 0]);
+        ws.addRow(['Tax Total', '', '', '', invoice.totals?.tax_total || 0]);
+        ws.addRow(['Grand Total', '', '', '', invoice.totals?.grand_total || 0]);
+
+        ws.addRow([]);
+        ws.addRow(['-- Confidence Scores --']);
+        ws.addRow(['Supplier Name', `${invoice.confidence_scores?.supplier_name || 0}%`]);
+        ws.addRow(['GSTIN', `${invoice.confidence_scores?.supplier_gstin || 0}%`]);
+        ws.addRow(['Invoice Number', `${invoice.confidence_scores?.invoice_number || 0}%`]);
+        ws.addRow(['Grand Total', `${invoice.confidence_scores?.grand_total || 0}%`]);
 
         const excelPath = path.join(__dirname, `../../uploads/invoice_${invoice.invoice?.invoice_number || invoice._id}.xlsx`);
         await workbook.xlsx.writeFile(excelPath);
@@ -179,7 +194,7 @@ const downloadJSON = async (req, res) => {
     try {
         const invoice = await Invoice.findById(req.params.id);
         if (!invoice) return res.status(404).json({ message: "Invoice not found" });
-        
+
         const jsonPath = path.join(__dirname, `../../uploads/invoice_${invoice.invoice?.invoice_number || invoice._id}.json`);
         fs.writeFileSync(jsonPath, JSON.stringify(invoice, null, 2));
         res.download(jsonPath);
