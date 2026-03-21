@@ -1,5 +1,5 @@
 const Invoice = require('../models/invoice.model');
-const { extractBatchInvoiceData } = require('../services/gemini.service');
+const { extractBatchInvoiceData } = require('../services/cnn.service');
 const fs = require('fs');
 const { createObjectCsvWriter } = require('csv-writer');
 const ExcelJS = require('exceljs');
@@ -13,7 +13,7 @@ const extractAndSaveInvoices = async (req, res) => {
         console.log('Starting extraction for files:', req.files.map(f => f.originalname));
 
         const batchData = await extractBatchInvoiceData(req.files);
-        console.log('Gemini returned batch data successfully');
+        console.log('CNN service returned batch data successfully');
 
         const savedInvoices = [];
         for (let i = 0; i < batchData.processed_invoices.length; i++) {
