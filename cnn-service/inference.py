@@ -8,7 +8,7 @@ import cv2
 import numpy as np
 from preprocessing import preprocess_for_cnn, preprocess_for_ocr, crop_region
 from model_def import load_model, predict, FIELD_NAMES
-from ocr_engine import (
+from ocr_engine_simple import (
     extract_full_text, extract_text_from_region,
     parse_gstin, parse_invoice_number, parse_date,
     parse_grand_total, parse_tax_amounts, parse_phone,
@@ -50,22 +50,30 @@ def process_invoice(image_path):
 
     # 5. Extract text from each CNN-detected region
     field_texts = {}
-    for field_name, (nx1, ny1, nx2, ny2) in field_bboxes.items():
-        # De-normalize bounding box to pixel coords
-        x1 = int(nx1 * w)
-        y1 = int(ny1 * h)
-        x2 = int(nx2 * w)
-        y2 = int(ny2 * h)
+    if field_bboxes:  # Only process if bboxes are available
+        for field_name, (nx1, ny1, nx2, ny2) in field_bboxes.items():
+            # De-normalize bounding box to pixel coords
+            x1 = int(nx1 * w)
+            y1 = int(ny1 * h)
+            x2 = int(nx2 * w)
+            y2 = int(ny2 * h)
 
-        # Only crop if bbox is valid and non-trivial
-        if x2 > x1 + 5 and y2 > y1 + 5:
-            cropped = crop_region(original, (x1, y1, x2, y2))
-            cropped_gray = cv2.cvtColor(cropped, cv2.COLOR_BGR2GRAY)
-            field_texts[field_name] = extract_text_from_region(
-                cropped_gray, mode="line"
-            )
-        else:
-            field_texts[field_name] = ""
+            # Only crop if bbox is valid and non-trivial
+            if x2 > x1 + 5 and y2 > y1 + 5:
+                try:
+                    cropped = crop_region(original, (x1, y1, x2, y2))
+                    cropped_gray = cv2.cvtColor(cropped, cv2.COLOR_BGR2GRAY)
+                    field_texts[field_name] = extract_text_from_region(
+                        cropped_gray, mode="line"
+                    )
+                except Exception as e:
+                    print(f"[Warning] Could not extract text from {field_name}: {e}")
+                    field_texts[field_name] = ""
+            else:
+                field_texts[field_name] = ""
+    else:
+        # If no bboxes available, initialize empty field_texts
+        field_texts = {fname: "" for fname in ["supplier_name", "supplier_gstin", "invoice_number", "invoice_date", "grand_total"]}
 
     # 6. Parse structured fields
     supplier_text = field_texts.get("supplier_name", "") or full_text
@@ -90,18 +98,23 @@ def process_invoice(image_path):
         grand_total = round(sub_total + tax_total, 2)
 
     # 8. Confidence scores (CNN softmax → percentage)
-    def conf(field):
-        # Field-specific confidence: if we got a value → higher confidence
-        has_value = {
-            "supplier_name":  supplier_name is not None,
-            "supplier_gstin": supplier_gstin is not None,
-            "invoice_number": invoice_number is not None,
-            "invoice_date":   invoice_date is not None,
-            "grand_total":    grand_total is not None,
-        }.get(field, False)
-        # Base score from CNN category confidence (normalized)
-        base = min(cat_confidence, 95.0)
-        return round(base * 0.8 + (15 if has_value else 0), 1)
+    def conf(field, value):
+        # Field-specific confidence check
+        has_value = value is not None and str(value).strip() != ""
+        
+        # Base from CNN classification confidence
+        base = min(cat_confidence, 90.0)
+        
+        # Boost if field is clearly found with good regex match
+        boost = 0
+        if has_value:
+            boost = 10
+            # Extra boost for specific well-formatted data
+            if field == "supplier_gstin" and len(str(value)) == 15: boost += 10
+            if field == "invoice_number" and len(str(value)) > 3: boost += 5
+            if field == "grand_total" and float(value or 0) > 0: boost += 5
+            
+        return min(round(base + boost, 1), 100.0)
 
     result = {
         "invoice_category": category,
@@ -125,11 +138,11 @@ def process_invoice(image_path):
             "grand_total": grand_total,
         },
         "confidence_scores": {
-            "supplier_name":  conf("supplier_name"),
-            "supplier_gstin": conf("supplier_gstin"),
-            "invoice_number": conf("invoice_number"),
-            "invoice_date":   conf("invoice_date"),
-            "grand_total":    conf("grand_total"),
+            "supplier_name":  conf("supplier_name", supplier_name),
+            "supplier_gstin": conf("supplier_gstin", supplier_gstin),
+            "invoice_number": conf("invoice_number", invoice_number),
+            "invoice_date":   conf("invoice_date", invoice_date),
+            "grand_total":    conf("grand_total", grand_total),
         }
     }
     return result

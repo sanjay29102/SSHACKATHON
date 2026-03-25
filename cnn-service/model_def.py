@@ -111,9 +111,21 @@ def load_model(path=MODEL_PATH):
 def predict(model, preprocessed_image):
     """
     Run inference on a preprocessed image (shape: 1, 224, 224, 3).
-    Returns category_name and confidence 0–100.
+    Returns category_name, confidence 0–100, and estimated field bboxes.
+    Note: Bboxes are estimates based on typical invoice layout patterns.
     """
     cat_probs = model.predict(preprocessed_image, verbose=0)
     cat_idx = int(np.argmax(cat_probs[0]))
     cat_conf = float(cat_probs[0][cat_idx]) * 100
-    return CATEGORY_LABELS[cat_idx], cat_conf, {}
+    
+    # Generate heuristic bounding boxes based on typical invoice layout
+    # These are normalized coordinates (0-1) relative to image dimensions
+    field_bboxes = {
+        "supplier_name": (0.05, 0.05, 0.7, 0.15),      # Top-left area
+        "supplier_gstin": (0.05, 0.10, 0.7, 0.20),     # Below supplier name
+        "invoice_number": (0.6, 0.05, 0.95, 0.12),     # Top-right
+        "invoice_date": (0.6, 0.12, 0.95, 0.20),       # Below invoice number
+        "grand_total": (0.6, 0.85, 0.95, 0.95),        # Bottom-right
+    }
+    
+    return CATEGORY_LABELS[cat_idx], cat_conf, field_bboxes
