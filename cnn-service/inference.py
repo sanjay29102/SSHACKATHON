@@ -98,23 +98,18 @@ def process_invoice(image_path):
         grand_total = round(sub_total + tax_total, 2)
 
     # 8. Confidence scores (CNN softmax → percentage)
-    def conf(field, value):
-        # Field-specific confidence check
-        has_value = value is not None and str(value).strip() != ""
-        
-        # Base from CNN classification confidence
-        base = min(cat_confidence, 90.0)
-        
-        # Boost if field is clearly found with good regex match
-        boost = 0
-        if has_value:
-            boost = 10
-            # Extra boost for specific well-formatted data
-            if field == "supplier_gstin" and len(str(value)) == 15: boost += 10
-            if field == "invoice_number" and len(str(value)) > 3: boost += 5
-            if field == "grand_total" and float(value or 0) > 0: boost += 5
-            
-        return min(round(base + boost, 1), 100.0)
+    def conf(field):
+        # Field-specific confidence: if we got a value → higher confidence
+        has_value = {
+            "supplier_name":  supplier_name is not None,
+            "supplier_gstin": supplier_gstin is not None,
+            "invoice_number": invoice_number is not None,
+            "invoice_date":   invoice_date is not None,
+            "grand_total":    grand_total is not None,
+        }.get(field, False)
+        # Base score from CNN category confidence (normalized)
+        base = min(cat_confidence, 95.0)
+        return round(base * 0.8 + (15 if has_value else 0), 1)
 
     result = {
         "invoice_category": category,
@@ -138,11 +133,11 @@ def process_invoice(image_path):
             "grand_total": grand_total,
         },
         "confidence_scores": {
-            "supplier_name":  conf("supplier_name", supplier_name),
-            "supplier_gstin": conf("supplier_gstin", supplier_gstin),
-            "invoice_number": conf("invoice_number", invoice_number),
-            "invoice_date":   conf("invoice_date", invoice_date),
-            "grand_total":    conf("grand_total", grand_total),
+            "supplier_name":  conf("supplier_name"),
+            "supplier_gstin": conf("supplier_gstin"),
+            "invoice_number": conf("invoice_number"),
+            "invoice_date":   conf("invoice_date"),
+            "grand_total":    conf("grand_total"),
         }
     }
     return result

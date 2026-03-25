@@ -195,24 +195,15 @@ def parse_tax_amounts(text):
     
     result = {"cgst": 0.0, "sgst": 0.0, "igst": 0.0}
     
-    # Clean text to normalize spaces
-    normalized_text = re.sub(r'\s+', ' ', text)
-    
+    # For each tax type, find the number right after it
     for tax_type in ["cgst", "sgst", "igst"]:
-        # Match CGST/SGST/IGST, skip an optional percentage rate, and capture the amount
-        pattern = rf'{tax_type}\s*[@%:]?\s*(?:\d+(?:\.\d+)?\s*%?)?\s*[:\s₹Rs.]*([\d,]+\.?\d{{2}})'
-        m = re.search(pattern, normalized_text, re.I)
-        
-        if not m:
-            # Fallback for integer amounts
-            pattern = rf'{tax_type}\s*[@%:]?\s*(?:\d+(?:\.\d+)?\s*%?)?\s*[:\s₹Rs.]*(\d+(?:[.,]\d+)*)'
-            m = re.search(pattern, normalized_text, re.I)
-            
+        # Pattern: CGST followed by optional % and/or : then a number
+        pattern = rf'{tax_type}\s*[%@:]?\s*([0-9]+(?:[.,][0-9]+)?)'
+        m = re.search(pattern, text, re.I)
         if m:
             try:
-                val = float(m.group(1).replace(',', '').replace(' ', ''))
-                if val < 1000000:
-                    result[tax_type] = val
+                val = float(m.group(1).replace(',', ''))
+                result[tax_type] = val
             except:
                 pass
     
@@ -244,19 +235,18 @@ def parse_line_items(text):
     lines = text.split('\n')
     
     for line in lines:
-        line = line.strip()
-        # Skip header/footer lines and lines that are clearly not items
-        if not line or re.match(r'^\s*(sr|s\.?no|item|description|qty|unit|rate|amount|total|hsn|invoice|bill|company|supplier)', line, re.I):
+        # Skip header/footer lines
+        if re.match(r'^\s*(sr|s\.?no|item|description|qty|rate|amount|total|hsn|invoice|bill|company|supplier)', line, re.I):
             continue
         
-        # Pattern: [Optional S.No] [Item Name with spaces] [Optional HSN] [Qty] [Rate] [Amount]
-        # This is a robust pattern looking for 3 numbers (int or float) at the end of a line
-        m = re.search(r'(?:\d+\.?\s+)?([A-Za-z][A-Za-z0-9\s/\-.,&()]*?)\s+(?:\d{4,}\s+)?(\d+\.?\d*)\s+([0-9.]+\.?\d*)\s+([0-9,]+\.?\d*)', line)
+        # Try to match: word+ number number number pattern
+        # This handles: ItemName 1 100 100 or ItemName 1 100.00 100.00
+        m = re.search(r'([A-Za-z][A-Za-z0-9\s/\-.,&()]*?)\s+(\d+\.?\d*)\s+(\d+\.?\d*)\s+([0-9,]+\.?\d*)', line)
         
         if m:
             try:
                 name = m.group(1).strip()
-                # Clean up name: remove noise and leading number leftovers
+                # Remove leading numbers (S.No)
                 name = re.sub(r'^\d+\.\s+', '', name).strip()
                 name = re.sub(r'\s+', ' ', name).strip()
                 
@@ -264,15 +254,12 @@ def parse_line_items(text):
                 rate = float(m.group(3))
                 amount = float(m.group(4).replace(',', ''))
                 
+                # Validate
                 if len(name) >= 2 and qty > 0 and amount > 0:
-                    # Try to pick up HSN if it was in the line (4-8 digits)
-                    hsn_match = re.search(r'\b(\d{4,8})\b', line)
-                    hsn = hsn_match.group(1) if hsn_match else None
-                    
                     items.append({
                         "item_name": name[:80],
                         "item_category": "Other",
-                        "hsn_code": hsn,
+                        "hsn_code": None,
                         "quantity": round(qty, 2),
                         "unit_of_measure": "pcs",
                         "rate": round(rate, 2),
