@@ -272,4 +272,4 @@ The AI Invoice OCR Extraction System demonstrates how artificial intelligence ca
 
 By combining AI-based document understanding, financial validation, and business analytics, this system provides a powerful solution for modern invoice management and accounting automation.
 
-If you want, I can also give you a shorter hackathon-style README (which judges prefer because it is more concise and impressive).
+
